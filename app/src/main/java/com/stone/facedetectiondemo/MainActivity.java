@@ -1,6 +1,9 @@
 package com.stone.facedetectiondemo;
 
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.support.v7.app.AppCompatActivity;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -10,7 +13,9 @@ import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.CameraBridgeViewBase.CvCameraViewFrame;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
+import org.opencv.android.Utils;
 import org.opencv.core.Core;
+import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfRect;
 import org.opencv.core.Rect;
@@ -18,6 +23,7 @@ import org.opencv.core.Scalar;
 import org.opencv.core.Size;
 import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.CameraBridgeViewBase.CvCameraViewListener2;
+import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.objdetect.CascadeClassifier;
 import org.opencv.imgproc.Imgproc;
 
@@ -30,37 +36,37 @@ import android.view.WindowManager;
 
 public class MainActivity extends AppCompatActivity implements CvCameraViewListener2 {
 
-    private static final String    TAG                 = "OCVSample::Activity";
-    private static final Scalar    FACE_RECT_COLOR     = new Scalar(0, 255, 0, 255);
-    public static final int        JAVA_DETECTOR       = 0;
-    public static final int        NATIVE_DETECTOR     = 1;
+    private static final String TAG = "OCVSample::Activity";
+    private static final Scalar FACE_RECT_COLOR = new Scalar(0, 255, 0, 255);
+    public static final int JAVA_DETECTOR = 0;
+    public static final int NATIVE_DETECTOR = 1;
 
-    private MenuItem               mItemFace50;
-    private MenuItem               mItemFace40;
-    private MenuItem               mItemFace30;
-    private MenuItem               mItemFace20;
-    private MenuItem               mItemType;
+    private MenuItem mItemFace50;
+    private MenuItem mItemFace40;
+    private MenuItem mItemFace30;
+    private MenuItem mItemFace20;
+    private MenuItem mItemFace10;
+    private MenuItem mItemType;
 
-    private Mat                    mRgba;
-    private Mat                    mGray;
-    private File                   mCascadeFile;
-    private CascadeClassifier      mJavaDetector;
-    private DetectionBasedTracker  mNativeDetector;
+    private Mat mRgba;
+    private Mat mGray;
+    private File mCascadeFile;
+    private CascadeClassifier mJavaDetector;
+    private DetectionBasedTracker mNativeDetector;
 
-    private int                    mDetectorType       = JAVA_DETECTOR;
-    private String[]               mDetectorName;
+    private int mDetectorType = JAVA_DETECTOR;
+    private String[] mDetectorName;
 
-    private float                  mRelativeFaceSize   = 0.2f;
-    private int                    mAbsoluteFaceSize   = 0;
+    private float mRelativeFaceSize = 0.2f;
+    private int mAbsoluteFaceSize = 0;
 
-    private CameraBridgeViewBase   mOpenCvCameraView;
+    private CameraBridgeViewBase mOpenCvCameraView;
 
-    private BaseLoaderCallback  mLoaderCallback = new BaseLoaderCallback(this) {
+    private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
         @Override
         public void onManagerConnected(int status) {
             switch (status) {
-                case LoaderCallbackInterface.SUCCESS:
-                {
+                case LoaderCallbackInterface.SUCCESS: {
                     Log.i(TAG, "OpenCV loaded successfully");
 
                     // Load native library after(!) OpenCV initialization
@@ -98,11 +104,12 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
                     }
 
                     mOpenCvCameraView.enableView();
-                } break;
-                default:
-                {
+                }
+                break;
+                default: {
                     super.onManagerConnected(status);
-                } break;
+                }
+                break;
             }
         }
     };
@@ -115,7 +122,9 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
         Log.i(TAG, "Instantiated new " + this.getClass());
     }
 
-    /** Called when the activity is first created. */
+    /**
+     * Called when the activity is first created.
+     */
     @Override
     public void onCreate(Bundle savedInstanceState) {
         Log.i(TAG, "called onCreate");
@@ -130,16 +139,14 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
     }
 
     @Override
-    public void onPause()
-    {
+    public void onPause() {
         super.onPause();
         if (mOpenCvCameraView != null)
             mOpenCvCameraView.disableView();
     }
 
     @Override
-    public void onResume()
-    {
+    public void onResume() {
         super.onResume();
         if (!OpenCVLoader.initDebug()) {
             Log.d(TAG, "Internal OpenCV library not found. Using OpenCV Manager for initialization");
@@ -169,6 +176,18 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
 
         mRgba = inputFrame.rgba();
         mGray = inputFrame.gray();
+//        Bitmap bpGlasses = BitmapFactory.decodeResource(getResources(),
+//                R.drawable.glasses);
+        Mat matGlasses = new Mat();
+        Mat mask= new Mat();
+//        Utils.bitmapToMat(bpGlasses, matGlasses);
+
+        try {
+            matGlasses= Utils.loadResource(this,R.drawable.glasses);
+            mask = Utils.loadResource(this,R.drawable.glasses,0);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
         if (mAbsoluteFaceSize == 0) {
             int height = mGray.rows();
@@ -184,18 +203,39 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
             if (mJavaDetector != null)
                 mJavaDetector.detectMultiScale(mGray, faces, 1.1, 2, 2, // TODO: objdetect.CV_HAAR_SCALE_IMAGE
                         new Size(mAbsoluteFaceSize, mAbsoluteFaceSize), new Size());
-        }
-        else if (mDetectorType == NATIVE_DETECTOR) {
+        } else if (mDetectorType == NATIVE_DETECTOR) {
             if (mNativeDetector != null)
                 mNativeDetector.detect(mGray, faces);
-        }
-        else {
+        } else {
             Log.e(TAG, "Detection method is not selected!");
         }
 
         Rect[] facesArray = faces.toArray();
-        for (int i = 0; i < facesArray.length; i++)
+        Mat dst=new Mat(); ;
+        Mat mRgbaSub=new Mat();
+        for (int i = 0; i < facesArray.length; i++){
+            double glassesWidth=matGlasses.width();
+            double scale = facesArray[i].width/glassesWidth;
+            double width = matGlasses.width()*scale;
+            double height = matGlasses.height()*scale;
+            int x=(int) facesArray[i].tl().x;
+            int y =(int) (facesArray[i].tl().y+(facesArray[i].br().y-facesArray[i].tl().y)/3);
+            if(width>0&&height>0){
+//                dst= new Mat(new Size(width, height), CvType.CV_16S);
+                //按比例缩小图片
+                Imgproc.resize(matGlasses, dst, new Size(width, height));
+                Imgproc.resize(matGlasses, mask, new Size(width, height));
+                // 定义感兴趣区域Rect(x坐标，y坐标,图片2的宽，图片2的高)
+                Rect rec = new Rect(x, y, dst.cols(), dst.rows());
+                // submat(y坐标, 图片2的高, x坐标，图片2的宽);
+                mRgbaSub = mRgba.submat(rec);
+                //Mat mask1 = mask.setTo(new Scalar(255,255,255)); //掩模反色
+                //Core.addWeighted(mRgbaSub,0.5,dst,0.3,0.,mRgbaSub);
+                dst.copyTo(mRgbaSub,mask);
+            }
+
             Imgproc.rectangle(mRgba, facesArray[i].tl(), facesArray[i].br(), FACE_RECT_COLOR, 3);
+        }
 
         return mRgba;
     }
@@ -207,7 +247,8 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
         mItemFace40 = menu.add("Face size 40%");
         mItemFace30 = menu.add("Face size 30%");
         mItemFace20 = menu.add("Face size 20%");
-        mItemType   = menu.add(mDetectorName[mDetectorType]);
+        mItemFace10 = menu.add("Face size 10%");
+        mItemType = menu.add(mDetectorName[mDetectorType]);
         return true;
     }
 
@@ -222,6 +263,8 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
             setMinFaceSize(0.3f);
         else if (item == mItemFace20)
             setMinFaceSize(0.2f);
+        else if (item == mItemFace10)
+            setMinFaceSize(0.05f);
         else if (item == mItemType) {
             int tmpDetectorType = (mDetectorType + 1) % mDetectorName.length;
             item.setTitle(mDetectorName[tmpDetectorType]);
